@@ -1,0 +1,7 @@
+agenta
+pandas
+weaviate-client
+openai
+gdown
+tqdm
+ipdb
