@@ -5,6 +5,8 @@ import numpy as np
 import openai
 import pandas as pd
 import weaviate
+import cohere
+import replicate
 
 
 def get_embedding(text):
@@ -18,14 +20,28 @@ def get_embedding(text):
 
 def summarize(chat_text, summarize_prompt):
     # Summarize conversations since individually they are long and go over 8k limit
-    prompt = "Summarize the following conversation on the MLOps.community slack channel. Do not use the usernames in the summary. ```" + chat_text + "```"
-    completion = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo",
-        messages=[
-            {"role": "user", "content": prompt}
-        ]
+    prompt = summarize_prompt + chat_text + "```"
+
+    return ask_replicate(prompt)
+
+
+def ask_cohere(prompt: str) -> str:
+    co = cohere.Client(os.environ['COHERE_API_KEY'])
+    response = co.generate(
+        prompt=prompt)
+    content = response.generations[0].text
+    return content
+
+
+def ask_replicate(prompt: str) -> str:
+    output = replicate.run(
+        "replicate/vicuna-13b:6282abe6a492de4145d7bb601023762212f9ddbbe78278bd6771c8b3b2f2a13b",
+        input={"prompt": prompt}
     )
-    return completion.choices[0].message.content
+    result = ""
+    for item in output:
+        result += item
+    return result
 
 
 def extract_answer(chat_texts, question, summarize_prompt: str, generate_prompt: str):
@@ -37,14 +53,8 @@ def extract_answer(chat_texts, question, summarize_prompt: str, generate_prompt:
     if not question.endswith("?"):
         question = question + "?"
     prompt += f"\nQuestion: {question}"
-    completion = openai.ChatCompletion.create(
-        model="gpt-4",
-        messages=[
-            {"role": "user", "content": prompt}
-        ]
-    )
-    content = completion.choices[0].message.content
-    return content
+
+    return ask_replicate(prompt)
 
 
 def search_index(client, embedding):

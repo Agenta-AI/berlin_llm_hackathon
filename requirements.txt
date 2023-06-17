@@ -5,3 +5,5 @@ openai
 gdown
 tqdm
 ipdb
+cohere
+replicate
