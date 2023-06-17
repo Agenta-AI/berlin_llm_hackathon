@@ -7,6 +7,17 @@ import pandas as pd
 import weaviate
 import cohere
 import replicate
+import requests
+
+
+def ask_falcon(prompt):
+    API_URL = "https://api-inference.huggingface.co/models/tiiuae/falcon-7b-instruct"
+    headers = {"Authorization": "Bearer "+os.environ["HF_API_KEY"]}
+    payload = {"inputs": prompt}
+    response = requests.post(API_URL, headers=headers, json=payload)
+    import ipdb
+    ipdb.set_trace()
+    return response.json()[0]["generated_text"]
 
 
 def get_embedding(text):
@@ -22,7 +33,7 @@ def summarize(chat_text, summarize_prompt, replicate_model):
     # Summarize conversations since individually they are long and go over 8k limit
     prompt = summarize_prompt + chat_text + "```"
 
-    return ask_replicate(prompt, replicate_model)
+    return ask_falcon(prompt)
 
 
 def ask_cohere(prompt: str) -> str:
@@ -54,7 +65,7 @@ def extract_answer(chat_texts, question, summarize_prompt: str, generate_prompt:
         question = question + "?"
     prompt += f"\nQuestion: {question}"
 
-    return ask_replicate(prompt, replicate_model)
+    return ask_falcon(prompt)
 
 
 def search_index(client, embedding):
