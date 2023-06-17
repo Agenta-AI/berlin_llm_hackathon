@@ -18,11 +18,11 @@ def get_embedding(text):
     return response.data[0].embedding
 
 
-def summarize(chat_text, summarize_prompt):
+def summarize(chat_text, summarize_prompt, replicate_model):
     # Summarize conversations since individually they are long and go over 8k limit
     prompt = summarize_prompt + chat_text + "```"
 
-    return ask_replicate(prompt)
+    return ask_replicate(prompt, replicate_model)
 
 
 def ask_cohere(prompt: str) -> str:
@@ -33,7 +33,7 @@ def ask_cohere(prompt: str) -> str:
     return content
 
 
-def ask_replicate(prompt: str) -> str:
+def ask_replicate(prompt: str, model: str) -> str:
     output = replicate.run(
         "replicate/vicuna-13b:6282abe6a492de4145d7bb601023762212f9ddbbe78278bd6771c8b3b2f2a13b",
         input={"prompt": prompt}
@@ -44,17 +44,17 @@ def ask_replicate(prompt: str) -> str:
     return result
 
 
-def extract_answer(chat_texts, question, summarize_prompt: str, generate_prompt: str):
+def extract_answer(chat_texts, question, summarize_prompt: str, generate_prompt: str, replicate_model: str):
     # Combine the summaries into a prompt and use SotA GPT-4 to answer.
     prompt = generate_prompt
     for i, chat_text in enumerate(chat_texts):
-        prompt += f"\nConversation {i+1} Summary:\n```\n{summarize(chat_text, summarize_prompt)}```"
+        prompt += f"\nConversation {i+1} Summary:\n```\n{summarize(chat_text, summarize_prompt, replicate_model)}```"
 
     if not question.endswith("?"):
         question = question + "?"
     prompt += f"\nQuestion: {question}"
 
-    return ask_replicate(prompt)
+    return ask_replicate(prompt, replicate_model)
 
 
 def search_index(client, embedding):
@@ -85,10 +85,11 @@ def read_chats() -> pd.DataFrame:
 
 default_summarize_prompt = "Summarize the following conversation on the MLOps.community slack channel. Do not use the usernames in the summary. ```"
 default_generate_prompt = "Use the following summaries of conversations on the MLOps.community slack channel backtics to generate an answer for the user question."
+default_replicate_model = "vicuna-13b:6282abe6a492de4145d7bb601023762212f9ddbbe78278bd6771c8b3b2f2a13b"
 
 
 @ag.post
-def get_answer(question: str, summarize_prompt: ag.TextParam = default_summarize_prompt, generate_prompt: ag.TextParam = default_generate_prompt) -> str:
+def get_answer(question: str, summarize_prompt: ag.TextParam = default_summarize_prompt, generate_prompt: ag.TextParam = default_generate_prompt, replicate_model: ag.TextParam = default_replicate_model) -> str:
     # Get answer to the question by finding the three conversations that are nearest
     # to the question and then using them to generate the answer.
     # Not your Org Name. Org Id can be found in your organization's settings page.
@@ -105,4 +106,4 @@ def get_answer(question: str, summarize_prompt: ag.TextParam = default_summarize
         chat_texts.append(chat_text)
     if len(chat_texts) > 3:
         chat_texts[:3]
-    return extract_answer(chat_texts, question, summarize_prompt, generate_prompt)
+    return extract_answer(chat_texts, question, summarize_prompt, generate_prompt, replicate_model)
